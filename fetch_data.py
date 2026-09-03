@@ -42,7 +42,7 @@ task_fields = [
     "company_id",
     "effective_hours",
     "user_ids",
-    "employee_id"
+    # "employee_id",  ← tohle pole na project.task neexistuje, odstraněno
 ]
 
 task_ids = models.execute_kw(
