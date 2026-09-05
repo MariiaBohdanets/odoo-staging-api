@@ -101,9 +101,7 @@ project_fields = [
     "x_studio_country",
     "x_studio_accounting_software",
     "x_studio_zakzka_pl_id",
-    "x_studio_skupina",
-    "x_studio_project_category",
-    "active"
+    "x_studio_skupina"
 ]
 
 project_ids = models.execute_kw(
@@ -134,15 +132,15 @@ print("projects.json saved")
 # =========================
 al_fields = [
     "id",
-    "account_id",              # JOIN → project.project (dřívější analytic account) → "Zakázka - P&L_id"
+    "account_id",
     "amount",
     "company_id",
     "date",
-    "general_account_id",      # JOIN → account.account → "Účet" + "Název účtu"
+    "general_account_id",
     "journal_id",
     "x_plan2_id",
     "x_plan4_id",
-    "partner_id",               # JOIN → res.partner → "partner_id" (název)
+    "partner_id",
     "x_studio_related_field_2cp_1j0d5m2o0",
     "x_studio_typ_finannho_tu",
     "x_studio_skupina_projekt_1",
@@ -171,54 +169,47 @@ for i in range(0, len(al_ids), BATCH_SIZE):
 
 df_al = pd.DataFrame(lines)
 
-# rozbal ID z many2one polí, ať máme čisté ID pro lookup
-df_al["general_account_id_raw"] = df_al["general_account_id"].apply(extract_id)
-df_al["account_id_raw"] = df_al["account_id"].apply(extract_id)
-df_al["partner_id_raw"] = df_al["partner_id"].apply(extract_id)
+# --- ponecháme RAW ID jako čísla ve všech many2one sloupcích (jako ve tvém SQL) ---
+raw_id_cols = [
+    "account_id", "company_id", "general_account_id", "journal_id",
+    "x_plan2_id", "x_plan4_id", "partner_id", "move_line_id"
+]
+for col in raw_id_cols:
+    if col in df_al.columns:
+        df_al[col] = df_al[col].apply(extract_id)
 
-# --- JOIN 1: account.account → "Účet" (kód) + "Název účtu" ---
+# --- JOIN 1: account.account (podle general_account_id) → "Účet" + "Název účtu" ---
 account_lookup = read_lookup(
     "account.account",
-    df_al["general_account_id_raw"].tolist(),
+    df_al["general_account_id"].tolist(),
     ["code", "name"]
 )
-df_al["Účet"] = df_al["general_account_id_raw"].map(
+df_al["Účet"] = df_al["general_account_id"].map(
     lambda x: account_lookup.get(x, {}).get("code")
 )
-df_al["Název účtu"] = df_al["general_account_id_raw"].map(
+df_al["Název účtu"] = df_al["general_account_id"].map(
     lambda x: account_lookup.get(x, {}).get("name")
 )
 
-# --- JOIN 2: project.project (analytic account) → "Zakázka - P&L_id" ---
+# --- JOIN 2: project.project (podle account_id) → "Zakázka - P&L_id" ---
 analytic_lookup = read_lookup(
     "project.project",
-    df_al["account_id_raw"].tolist(),
+    df_al["account_id"].tolist(),
     ["name"]
 )
-df_al["Zakázka - P&L_id"] = df_al["account_id_raw"].map(
+df_al["Zakázka - P&L_id"] = df_al["account_id"].map(
     lambda x: analytic_lookup.get(x, {}).get("name")
 )
 
-# --- JOIN 3: res.partner → "partner_id" (název) ---
+# --- JOIN 3: res.partner (podle partner_id) → "partner_id" (název) ---
 partner_lookup = read_lookup(
     "res.partner",
-    df_al["partner_id_raw"].tolist(),
+    df_al["partner_id"].tolist(),
     ["name"]
 )
-df_al["partner_id_name"] = df_al["partner_id_raw"].map(
+df_al["partner_id_name"] = df_al["partner_id"].map(
     lambda x: partner_lookup.get(x, {}).get("name")
 )
-
-# zbylá many2one pole necháme jen jako čitelný název
-for col in ["company_id", "journal_id", "x_plan2_id", "x_plan4_id", "move_line_id"]:
-    if col in df_al.columns:
-        df_al[col] = df_al[col].apply(extract_name)
-
-# uklidíme pomocná raw ID (nejsou potřeba ve výstupu)
-df_al = df_al.drop(columns=[
-    "general_account_id_raw", "account_id_raw", "partner_id_raw",
-    "general_account_id", "account_id", "partner_id"
-])
 
 df_al.to_json("analytic_lines.json", orient="records")
 print("analytic_lines.json saved")
