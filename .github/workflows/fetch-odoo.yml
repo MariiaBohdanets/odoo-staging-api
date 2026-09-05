@@ -29,6 +29,6 @@ jobs:
         run: |
           git config user.name "github-actions"
           git config user.email "actions@github.com"
-       git add tasks.json analytic_lines.json projects.json
+          git add tasks.json analytic_lines.json projects.json
           git commit -m "Update Odoo staging data" || echo "No changes"
           git push
