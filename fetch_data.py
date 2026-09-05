@@ -101,7 +101,8 @@ project_fields = [
     "x_studio_country",
     "x_studio_accounting_software",
     "x_studio_zakzka_pl_id",
-    "x_studio_skupina"
+    "x_studio_skupina",
+    "x_studio_project_category"
 ]
 
 project_ids = models.execute_kw(
